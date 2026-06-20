@@ -1,1 +1,8 @@
-
+{
+  "admin": {
+    "email": "vitor.lima.joao1209@escola.pr.gov.br",
+    "senha": "admin123",
+    "admin": true,
+    "criado": "2024-01-01"
+  }
+}
