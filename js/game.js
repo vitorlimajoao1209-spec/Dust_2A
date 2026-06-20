@@ -439,7 +439,11 @@ function startGame() {
     document.getElementById('menu-screen').classList.remove('active');
     document.getElementById('game-screen').classList.add('active');
     document.getElementById('crosshair').style.display = 'none';
-    if (!scene) initGame();
+    
+    // Iniciar jogo
+    if (!scene) {
+        setTimeout(() => { initGame(); }, 100);
+    }
 }
 
 // ==================== GAME LOOP ====================
