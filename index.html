@@ -1,1 +1,168 @@
-
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DUST 2</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    
+    <!-- ==================== TELA DE LOGIN ==================== -->
+    <div id="login-screen" class="screen active">
+        <div class="login-bg"></div>
+        
+        <div class="login-box">
+            <div class="login-logo">
+                <h1>DUST 2</h1>
+                <p>FPS</p>
+            </div>
+            
+            <div class="login-tabs">
+                <button class="tab-btn active" onclick="switchTab('player')">PLAYER</button>
+                <button class="tab-btn" onclick="switchTab('guest')">CONVIDADO</button>
+            </div>
+            
+            <!-- PLAYER -->
+            <div id="player-form" class="login-form">
+                <div id="login-step-1">
+                    <div class="input-group">
+                        <label>EMAIL</label>
+                        <input type="email" id="player-email" placeholder="seu@email.com">
+                    </div>
+                    <div class="input-group">
+                        <label>SENHA</label>
+                        <input type="password" id="player-password" placeholder="Sua senha">
+                    </div>
+                    <button class="btn primary" onclick="loginPlayer()">ENTRAR</button>
+                    <div class="login-links">
+                        <span onclick="showRegister()">CRIAR CONTA</span>
+                    </div>
+                </div>
+                
+                <!-- REGISTRO -->
+                <div id="register-step" style="display:none;">
+                    <div class="input-group"><label>NOME</label><input type="text" id="reg-name" placeholder="Seu nick"></div>
+                    <div class="input-group"><label>EMAIL</label><input type="email" id="reg-email" placeholder="seu@email.com"></div>
+                    <div class="input-group"><label>SENHA</label><input type="password" id="reg-password" placeholder="Minimo 6 caracteres"></div>
+                    <div class="input-group"><label>CONFIRMAR SENHA</label><input type="password" id="reg-confirm" placeholder="Repita a senha"></div>
+                    <button class="btn primary" onclick="registerPlayer()">CRIAR CONTA</button>
+                    <button class="btn secondary" onclick="showLogin()">VOLTAR</button>
+                </div>
+                
+                <!-- CODIGO ADMIN -->
+                <div id="admin-code-section" style="display:none;">
+                    <p style="text-align:center;color:#ff8800;">Email admin detectado!</p>
+                    <p style="text-align:center;color:#aaa;">Codigo enviado para:</p>
+                    <p style="text-align:center;color:#fff;" id="admin-email-display"></p>
+                    <div class="input-group"><label>CODIGO</label><input type="text" id="admin-code-input" placeholder="000000" maxlength="6" style="text-align:center;font-size:20px;letter-spacing:8px;"></div>
+                    <button class="btn primary" onclick="verifyAdminCode()">CONFIRMAR</button>
+                    <button class="btn secondary" onclick="showLogin()">CANCELAR</button>
+                </div>
+            </div>
+            
+            <!-- CONVIDADO -->
+            <div id="guest-form" class="login-form" style="display:none;">
+                <p style="text-align:center;color:#aaa;">Modo offline contra bots</p>
+                <button class="btn primary" onclick="loginGuest()">JOGAR</button>
+            </div>
+            
+            <div class="message error" id="login-error"></div>
+            <div class="message success" id="login-success"></div>
+        </div>
+    </div>
+    
+    <!-- ==================== TELA DE MENU ==================== -->
+    <div id="menu-screen" class="screen">
+        <div class="menu-bg"></div>
+        
+        <!-- MENU ADMIN -->
+        <div id="admin-menu" class="menu-box" style="display:none;">
+            <h2>ADMINISTRACAO</h2>
+            <div class="menu-user"><span id="admin-name-display"></span><span class="badge">ADMIN</span></div>
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="startGame()">JOGAR OFFLINE</button>
+                <button class="menu-btn" onclick="showBotsMenu()">GERENCIAR BOTS</button>
+                <button class="menu-btn" onclick="showSettings()">CONFIGURACOES</button>
+                <button class="menu-btn" onclick="logout()">SAIR</button>
+            </div>
+        </div>
+        
+        <!-- MENU PLAYER -->
+        <div id="player-menu" class="menu-box" style="display:none;">
+            <h2>DUST 2</h2>
+            <div class="menu-user"><span id="player-name-display"></span></div>
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="startGame()">JOGAR OFFLINE</button>
+                <button class="menu-btn" onclick="showSettings()">CONFIGURACOES</button>
+                <button class="menu-btn" onclick="deleteAccount()">EXCLUIR CONTA</button>
+                <button class="menu-btn" onclick="logout()">SAIR</button>
+            </div>
+        </div>
+        
+        <!-- MENU CONVIDADO -->
+        <div id="guest-menu" class="menu-box" style="display:none;">
+            <h2>DUST 2</h2>
+            <div class="menu-user"><span id="guest-name-display"></span><span class="badge">CONVIDADO</span></div>
+            <div class="menu-buttons">
+                <button class="menu-btn" onclick="startGame()">JOGAR OFFLINE</button>
+                <button class="menu-btn" onclick="showSettings()">CONFIGURACOES</button>
+                <button class="menu-btn" onclick="logout()">SAIR</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ==================== TELA DO JOGO ==================== -->
+    <div id="game-screen" class="screen">
+        <div id="game-container"></div>
+        
+        <div id="crosshair">
+            <div class="crosshair-line h"></div>
+            <div class="crosshair-line v"></div>
+        </div>
+        
+        <div id="hud">
+            <div id="scoreboard">
+                <span>TR <span id="score-t">0</span></span>
+                <span>ROUND <span id="hud-round">1</span></span>
+                <span>CT <span id="score-ct">0</span></span>
+            </div>
+            <div id="hud-bottom">
+                <span id="hud-money">$1600</span>
+                <span id="hud-weapon">AK-47 [30/90]</span>
+                <span id="hud-hp">100 HP</span>
+            </div>
+        </div>
+        
+        <div id="health-bar-container"><div id="health-bar"></div><span id="health-text">100</span></div>
+        <div id="armor-bar-container"><div id="armor-bar"></div><span id="armor-text">0</span></div>
+        <div id="weapon-slots"></div>
+        <div id="killfeed"></div>
+        <div id="grenade-indicator"><span>HE: 1</span><span>FLASH: 0</span><span>SMOKE: 0</span></div>
+        
+        <div id="chat-box" class="game-chat"></div>
+        <input type="text" id="chat-input" class="game-chat-input" style="display:none;" placeholder="T para falar...">
+        
+        <div id="settings-panel" style="display:none;">
+            <h2>CONFIGURACOES</h2>
+            <div class="setting-item"><span>Musica</span><select><option>LIGADA</option><option>DESLIGADA</option></select></div>
+            <div class="setting-item"><span>Sensibilidade</span><input type="range" min="0.1" max="2" step="0.1" value="0.5"><span>0.5</span></div>
+            <div class="setting-item"><span>Mira</span><select><option>CRUZ</option><option>PONTO</option><option>CIRCULO</option></select></div>
+            <button onclick="toggleSettings()">FECHAR</button>
+        </div>
+        
+        <div id="buy-menu"></div>
+        <div id="pos-debug"></div>
+    </div>
+    
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/PointerLockControls.js"></script>
+    
+    <!-- Game Scripts -->
+    <script src="js/config.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/game.js"></script>
+    
+</body>
+</html>
