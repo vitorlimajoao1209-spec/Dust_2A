@@ -1,68 +1,55 @@
 // ==================== DUST 2 FPS - MOTOR PRINCIPAL ====================
 
-// Three.js
 let scene, camera, renderer, controls;
 let isLocked = false;
-
-// Jogador
-let playerHP = 100;
-let playerArmor = 0;
-let hasHelmet = false;
-let isDead = false;
-
-// Armas
-let currentWeapon = null;
-let currentSlot = 1;
+let playerHP = 100, playerArmor = 0, hasHelmet = false, isDead = false;
+let currentWeapon = null, currentSlot = 1;
 let weaponSlots = { 1: null, 2: null, 3: null, 4: null, 5: null };
-let isReloading = false;
-let lastShot = 0;
-
-// Movimento
+let isReloading = false, lastShot = 0;
 let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
 let canJump = false;
 let velocity = new THREE.Vector3();
 let direction = new THREE.Vector3();
 let prevTime = performance.now();
-
-// Jogo
-let bots = [];
-let money = 1600;
-let scoreT = 0, scoreCT = 0, round = 1;
-let bombPlanted = false;
-let bombTimer = null;
-let hasBomb = true;
-let isFrozen = true;
-let mapColliders = [];
-let grenades = [];
-
-// Modos
-let isFlyMode = false;
-let godMode = false;
-
-// Granadas
-let playerGrenades = { HE: 1, FLASH: 0, SMOKE: 0 };
-let selectedGrenadeType = 'HE';
-
-// Chat
+let bots = [], money = 1600, scoreT = 0, scoreCT = 0, round = 1;
+let bombPlanted = false, bombTimer = null, hasBomb = true, isFrozen = true;
+let mapColliders = [], grenades = [];
+let isFlyMode = false, godMode = false;
+let playerGrenades = { HE: 1, FLASH: 0, SMOKE: 0 }, selectedGrenadeType = 'HE';
 let isChatOpen = false;
-
-// Stats
 let playerStats = { kills: 0, deaths: 0, headshots: 0 };
 
-// ==================== INICIALIZAÇÃO ====================
+// ==================== INICIALIZACAO ====================
 function initGame() {
     scene = new THREE.Scene();
     scene.background = new THREE.Color(0x87CEEB);
     
     camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    camera.position.set(CHECKPOINTS.TR_SPAWN.x, CHECKPOINTS.TR_SPAWN.y, CHECKPOINTS.TR_SPAWN.z);
+    camera.position.set(0, 16, -35);
     
     renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.getElementById('game-container').appendChild(renderer.domElement);
     
-    controls = new THREE.PointerLockControls(camera, document.body);
-    controls.pointerSpeed = DEFAULT_SETTINGS.sensitivity;
+    // Controles sem PointerLock
+    controls = {
+        lock: function() { isLocked = true; },
+        unlock: function() { isLocked = false; },
+        addEventListener: function() {},
+        moveRight: function(v) { camera.position.x += v; },
+        moveForward: function(v) { camera.position.z += v; },
+        getObject: function() { return { position: { y: 14 } }; }
+    };
+    isLocked = true;
+    document.getElementById('crosshair').style.display = 'block';
+    
+    document.addEventListener('mousemove', function(e) {
+        if (isLocked && !isChatOpen && !isDead) {
+            camera.rotation.y -= e.movementX * 0.002;
+            camera.rotation.x -= e.movementY * 0.002;
+            camera.rotation.x = Math.max(-Math.PI/2, Math.min(Math.PI/2, camera.rotation.x));
+        }
+    });
     
     setupWeapons();
     createMap();
@@ -71,20 +58,11 @@ function initGame() {
     updateHUD();
     updateWeaponSlots();
     startFreezeTime();
-    
     setupGameEvents();
     animate();
-}
-
-function setupGameEvents() {
-    document.addEventListener('click', () => { if (!isChatOpen) controls.lock(); });
-    controls.addEventListener('lock', () => { isLocked = true; document.getElementById('crosshair').style.display = 'block'; });
-    controls.addEventListener('unlock', () => { isLocked = false; document.getElementById('crosshair').style.display = 'none'; });
-    document.addEventListener('mousedown', onMouseDown);
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', onKeyDown);
-    document.addEventListener('keyup', onKeyUp);
-    window.addEventListener('resize', onResize);
+    
+    renderer.render(scene, camera);
+    console.log('✅ Jogo iniciado');
 }
 
 function setupWeapons() {
@@ -126,97 +104,61 @@ function createMap() {
     });
     
     // Bombsites
-    const siteMat = new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.3 });
-    const siteA = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 0.1, 16), siteMat);
-    siteA.position.set(CHECKPOINTS.BOMB_A.x, 14.1, CHECKPOINTS.BOMB_A.z);
-    scene.add(siteA);
-    
-    const siteB = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 0.1, 16), new THREE.MeshBasicMaterial({ color: 0x4444ff, transparent: true, opacity: 0.3 }));
-    siteB.position.set(CHECKPOINTS.BOMB_B.x, 14.1, CHECKPOINTS.BOMB_B.z);
-    scene.add(siteB);
+    const sA = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 0.1, 16), new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.3 }));
+    sA.position.set(10, 14.1, 0); scene.add(sA);
+    const sB = new THREE.Mesh(new THREE.CylinderGeometry(3, 3, 0.1, 16), new THREE.MeshBasicMaterial({ color: 0x4444ff, transparent: true, opacity: 0.3 }));
+    sB.position.set(-10, 14.1, 0); scene.add(sB);
 }
 
 // ==================== BOTS ====================
 function createBots() {
-    bots.forEach(b => scene.remove(b));
-    bots = [];
-    
-    for (let i = 0; i < 5; i++) {
+    bots.forEach(b => scene.remove(b)); bots = [];
+    const n = parseInt(localStorage.getItem('botCount') || '5');
+    for (let i = 0; i < n; i++) {
         const bot = new THREE.Group();
-        const head = new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), new THREE.MeshLambertMaterial({ color: 0xcc6666 }));
-        head.position.y = 2.1; head.name = "HEADSHOT";
-        const chest = new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.2, 1.2), new THREE.MeshLambertMaterial({ color: 0x883333 }));
-        chest.position.y = 0.8;
-        const legs = new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.5, 1.0), new THREE.MeshLambertMaterial({ color: 0x662222 }));
-        legs.position.y = -1.0;
-        bot.add(head); bot.add(chest); bot.add(legs);
-        
-        bot.position.set(CHECKPOINTS.CT_SPAWN.x + (Math.random()-0.5)*20, 15, CHECKPOINTS.CT_SPAWN.z + (Math.random()-0.5)*20);
-        bot.userData = { health: 100, name: 'Bot_'+(i+1), lastShotTime: 0, reactionTime: 800+Math.random()*1200, accuracy: 0.3, target: i%2===0?CHECKPOINTS.BOMB_A:CHECKPOINTS.BOMB_B, state:'PATROL' };
-        scene.add(bot);
-        bots.push(bot);
+        bot.add(new THREE.Mesh(new THREE.SphereGeometry(0.5, 8, 8), new THREE.MeshLambertMaterial({ color: 0xcc6666 }))).position.y = 2.1;
+        bot.children[0].name = "HEADSHOT";
+        bot.add(new THREE.Mesh(new THREE.BoxGeometry(1.6, 2.2, 1.2), new THREE.MeshLambertMaterial({ color: 0x883333 }))).position.y = 0.8;
+        bot.add(new THREE.Mesh(new THREE.BoxGeometry(1.4, 1.5, 1.0), new THREE.MeshLambertMaterial({ color: 0x662222 }))).position.y = -1.0;
+        bot.position.set((Math.random()-0.5)*20, 15, 35 + (Math.random()-0.5)*20);
+        bot.userData = { health: 100, name: 'Bot_'+(i+1), lastShotTime: 0, reactionTime: 800+Math.random()*1200, accuracy: 0.3 };
+        scene.add(bot); bots.push(bot);
     }
 }
 
 // ==================== TIRO ====================
 function shoot() {
-    if (isFrozen || isDead || isReloading) return;
-    if (currentSlot >= 4 || !currentWeapon || currentWeapon.ammo <= 0) return;
+    if (isFrozen || isDead || isReloading || currentSlot >= 4 || !currentWeapon || currentWeapon.ammo <= 0) return;
     if (Date.now() - lastShot < currentWeapon.fireRate) return;
-    
-    lastShot = Date.now();
-    currentWeapon.ammo--;
-    updateHUD();
-    playSound('shoot');
-    camera.rotation.x -= currentWeapon.recoil * 0.5;
+    lastShot = Date.now(); currentWeapon.ammo--; updateHUD();
+    playSound('shoot'); camera.rotation.x -= currentWeapon.recoil * 0.5;
     
     const ray = new THREE.Raycaster();
     ray.setFromCamera(new THREE.Vector2(0, 0), camera);
     const hits = ray.intersectObjects(scene.children, true);
     
     if (hits.length > 0) {
-        let target = hits[0].object;
-        while (target && !target.userData.health) target = target.parent;
-        
-        if (target && target.userData.health) {
-            let dmg = currentWeapon.damage;
-            if (hits[0].object.name === "HEADSHOT") { dmg *= 4; playSound('headshot'); playerStats.headshots++; }
-            target.userData.health -= dmg;
-            if (target.userData.health <= 0) killBot(target);
+        let t = hits[0].object;
+        while (t && !t.userData.health) t = t.parent;
+        if (t && t.userData.health) {
+            let d = currentWeapon.damage;
+            if (hits[0].object.name === "HEADSHOT") { d *= 4; playSound('headshot'); playerStats.headshots++; }
+            t.userData.health -= d;
+            if (t.userData.health <= 0) { scene.remove(t); bots = bots.filter(b => b !== t); money += 300; playerStats.kills++; addKillFeed("ELIMINOU", t.userData.name); updateHUD(); if (bots.length === 0) { scoreCT++; nextRound(); } }
         }
     }
 }
 
-function killBot(bot) {
-    scene.remove(bot);
-    bots = bots.filter(b => b !== bot);
-    money += 300;
-    playerStats.kills++;
-    addKillFeed("ELIMINOU", bot.userData.name);
-    updateHUD();
-    if (bots.length === 0) { scoreCT++; nextRound(); }
-}
-
-// ==================== DANO ====================
 function takeDamage(dmg) {
     if (isDead || godMode) return;
-    if (playerArmor > 0) {
-        const ad = Math.floor(dmg * (hasHelmet ? 0.7 : 0.5));
-        if (playerArmor >= ad) { playerArmor -= ad; dmg -= ad; }
-        else { dmg -= playerArmor; playerArmor = 0; }
-    }
-    playerHP -= Math.floor(dmg);
-    updateHUD(); updateHealthBars();
+    if (playerArmor > 0) { const ad = Math.floor(dmg * (hasHelmet ? 0.7 : 0.5)); if (playerArmor >= ad) { playerArmor -= ad; dmg -= ad; } else { dmg -= playerArmor; playerArmor = 0; } }
+    playerHP -= Math.floor(dmg); updateHUD(); updateHealthBars();
     if (playerHP <= 0) { playerHP = 0; die(); }
 }
 
 function die() {
     isDead = true; playerStats.deaths++;
-    setTimeout(() => {
-        playerHP = 100; playerArmor = 0; isDead = false;
-        camera.position.set(CHECKPOINTS.TR_SPAWN.x, CHECKPOINTS.TR_SPAWN.y, CHECKPOINTS.TR_SPAWN.z);
-        money = Math.floor(money * 0.7); updateHUD(); updateHealthBars();
-    }, 2500);
+    setTimeout(() => { playerHP = 100; playerArmor = 0; isDead = false; camera.position.set(0, 16, -35); money = Math.floor(money * 0.7); updateHUD(); updateHealthBars(); }, 2500);
 }
 
 // ==================== IA ====================
@@ -236,20 +178,15 @@ function botAI() {
                     if (Math.random() < bot.userData.accuracy) takeDamage(8 + Math.floor(Math.random()*15));
                 }
             }
-        } else {
-            const t = bot.userData.target;
-            const m = new THREE.Vector3().subVectors(new THREE.Vector3(t.x, bot.position.y, t.z), bot.position).normalize();
-            bot.position.addScaledVector(m, 0.08);
         }
     });
 }
 
-// ==================== SOM ====================
+// ==================== AUDIO ====================
 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 function playSound(type) {
     if (audioCtx.state === 'suspended') audioCtx.resume();
-    const o = audioCtx.createOscillator();
-    const g = audioCtx.createGain();
+    const o = audioCtx.createOscillator(), g = audioCtx.createGain();
     o.connect(g); g.connect(audioCtx.destination);
     if (type === 'shoot') { o.type='sawtooth'; o.frequency.value=150; g.gain.setValueAtTime(0.2,audioCtx.currentTime); g.gain.linearRampToValueAtTime(0.01,audioCtx.currentTime+0.08); o.start(); o.stop(audioCtx.currentTime+0.08); }
     if (type === 'headshot') { o.type='square'; o.frequency.value=800; g.gain.setValueAtTime(0.15,audioCtx.currentTime); g.gain.linearRampToValueAtTime(0.01,audioCtx.currentTime+0.1); o.start(); o.stop(audioCtx.currentTime+0.1); }
@@ -274,77 +211,61 @@ function updateHealthBars() {
 }
 
 function updateWeaponSlots() {
-    const c = document.getElementById('weapon-slots');
-    if (!c) return;
-    const slots = [1,2,3,4,5].map(k => {
+    const c = document.getElementById('weapon-slots'); if (!c) return;
+    c.innerHTML = [1,2,3,4,5].map(k => {
         let n = k===4?'GREN':k===5?(hasBomb?'C4':'---'):(weaponSlots[k]?weaponSlots[k].name.substring(0,4).toUpperCase():'---');
         return '<div class="slot'+(currentSlot===k?' active':'')+'">['+k+'] '+n+'</div>';
-    });
-    c.innerHTML = slots.join('');
+    }).join('');
 }
 
 function addKillFeed(k, v) {
-    const f = document.getElementById('killfeed');
-    if (!f) return;
-    const d = document.createElement('div');
-    d.className = 'kill-entry'; d.textContent = k+' '+v;
-    f.appendChild(d);
-    setTimeout(() => d.remove(), 3000);
+    const f = document.getElementById('killfeed'); if (!f) return;
+    const d = document.createElement('div'); d.className = 'kill-entry'; d.textContent = k+' '+v;
+    f.appendChild(d); setTimeout(() => d.remove(), 3000);
     while (f.children.length > 4) f.removeChild(f.firstChild);
 }
 
 // ==================== BOMBA ====================
 function plantBomb() {
     if (!hasBomb || bombPlanted || isFrozen || isDead) return;
-    bombPlanted = true; hasBomb = false;
-    addKillFeed("C4 PLANTADA", "");
-    let s = 40;
-    bombTimer = setInterval(() => { s--; if (s<=0) { clearInterval(bombTimer); scoreT++; nextRound(); } }, 1000);
+    bombPlanted = true; hasBomb = false; addKillFeed("C4 PLANTADA", "");
+    let s = 40; bombTimer = setInterval(() => { s--; if (s<=0) { clearInterval(bombTimer); scoreT++; nextRound(); } }, 1000);
     updateHUD();
 }
 
 function nextRound() {
     bombPlanted = false; hasBomb = true; round++;
     document.getElementById('hud-round').textContent = round;
-    camera.position.set(CHECKPOINTS.TR_SPAWN.x, CHECKPOINTS.TR_SPAWN.y, CHECKPOINTS.TR_SPAWN.z);
-    createBots(); money += 3200; playerHP = 100; playerArmor = 0; isDead = false;
+    camera.position.set(0, 16, -35); createBots(); money += 3200; playerHP = 100; playerArmor = 0; isDead = false;
     if (currentWeapon) currentWeapon.ammo = currentWeapon.maxAmmo;
     updateHUD(); startFreezeTime();
 }
 
 // ==================== COMPRAS ====================
 function createBuyMenu() {
-    const m = document.getElementById('buy-menu');
-    if (!m) return;
+    const m = document.getElementById('buy-menu'); if (!m) return;
     let h = '<h3>MERCADO (B)</h3>';
-    for (const cat in WEAPONS) {
+    const cats = { pistols: WEAPONS.pistols, smgs: WEAPONS.smgs, rifles: WEAPONS.rifles, gear: WEAPONS.gear };
+    for (const cat in cats) {
         h += '<b>'+cat.toUpperCase()+'</b><br>';
-        WEAPONS[cat].forEach(i => {
-            h += '<button onclick="buyItem(\''+i.name+'\','+i.price+',\''+cat+'\')">'+i.name+' $'+i.price+'</button> ';
-        });
+        cats[cat].forEach(i => { h += '<button onclick="buyItem(\''+i.name+'\','+i.price+',\''+cat+'\')">'+i.name+' $'+i.price+'</button> '; });
         h += '<br><br>';
     }
     m.innerHTML = h;
 }
 
 function buyItem(name, price, cat) {
-    if (money < price) return;
-    money -= price;
-    const item = WEAPONS[cat].find(i => i.name === name);
-    if (!item) return;
+    if (money < price) return; money -= price;
+    const item = WEAPONS[cat].find(i => i.name === name); if (!item) return;
     if (cat === 'pistols') { weaponSlots[2] = item; if (currentSlot===2) currentWeapon = weaponSlots[2]; }
     else if (cat === 'rifles' || cat === 'smgs') { weaponSlots[1] = item; if (currentSlot===1) currentWeapon = weaponSlots[1]; }
     else if (item.name === 'Colete') playerArmor = 100;
     else if (item.name === 'Capacete') hasHelmet = true;
-    else if (item.name === 'Faca') weaponSlots[3] = item;
     updateHUD();
 }
 
 // ==================== MOVIMENTO ====================
-function onMouseDown(e) {
-    if (!isLocked || isChatOpen || isDead) return;
-    if (e.button === 0) { e.preventDefault(); shoot(); }
-}
+function onMouseDown(e) { if (!isLocked || isChatOpen || isDead) return; if (e.button === 0) { e.preventDefault(); shoot(); } }
 
 function onKeyDown(e) {
     if (e.key === 'F12') { e.preventDefault(); return; }
@@ -353,45 +274,18 @@ function onKeyDown(e) {
     if (isDead) return;
     if (e.key >= '1' && e.key <= '5') { currentSlot = parseInt(e.key); if (currentSlot <= 3) currentWeapon = weaponSlots[currentSlot]; else currentWeapon = null; updateHUD(); return; }
     if (!isFrozen) {
-        switch(e.code) {
-            case 'KeyW': moveForward = true; break;
-            case 'KeyA': moveLeft = true; break;
-            case 'KeyS': moveBackward = true; break;
-            case 'KeyD': moveRight = true; break;
-            case 'Space': if (canJump) { velocity.y += 100; canJump = false; } break;
-            case 'KeyR': reload(); break;
-            case 'KeyB': document.getElementById('buy-menu').style.display = document.getElementById('buy-menu').style.display==='block'?'none':'block'; break;
-        }
+        switch(e.code) { case 'KeyW': moveForward = true; break; case 'KeyA': moveLeft = true; break; case 'KeyS': moveBackward = true; break; case 'KeyD': moveRight = true; break; case 'Space': if (canJump) { velocity.y += 100; canJump = false; } break; case 'KeyR': reload(); break; case 'KeyB': document.getElementById('buy-menu').style.display = document.getElementById('buy-menu').style.display==='block'?'none':'block'; break; }
     }
     if (e.key === 'f' && hasBomb && !bombPlanted) plantBomb();
 }
 
-function onKeyUp(e) {
-    switch(e.code) {
-        case 'KeyW': moveForward = false; break;
-        case 'KeyA': moveLeft = false; break;
-        case 'KeyS': moveBackward = false; break;
-        case 'KeyD': moveRight = false; break;
-    }
-}
-
-function onResize() {
-    camera.aspect = window.innerWidth / window.innerHeight;
-    camera.updateProjectionMatrix();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-}
+function onKeyUp(e) { switch(e.code) { case 'KeyW': moveForward = false; break; case 'KeyA': moveLeft = false; break; case 'KeyS': moveBackward = false; break; case 'KeyD': moveRight = false; break; } }
+function onResize() { camera.aspect = window.innerWidth / window.innerHeight; camera.updateProjectionMatrix(); renderer.setSize(window.innerWidth, window.innerHeight); }
 
 function reload() {
     if (!currentWeapon || currentWeapon.ammo >= currentWeapon.maxAmmo || currentWeapon.reserveAmmo <= 0) return;
     isReloading = true;
-    setTimeout(() => {
-        const need = currentWeapon.maxAmmo - currentWeapon.ammo;
-        const avail = Math.min(need, currentWeapon.reserveAmmo);
-        currentWeapon.ammo += avail;
-        currentWeapon.reserveAmmo -= avail;
-        isReloading = false;
-        updateHUD();
-    }, currentWeapon.reloadTime || 2500);
+    setTimeout(() => { const need = currentWeapon.maxAmmo - currentWeapon.ammo; const avail = Math.min(need, currentWeapon.reserveAmmo); currentWeapon.ammo += avail; currentWeapon.reserveAmmo -= avail; isReloading = false; updateHUD(); }, currentWeapon.reloadTime || 2500);
 }
 
 // ==================== CHAT ====================
@@ -403,53 +297,37 @@ function toggleChat() {
 }
 
 function sendChat() {
-    const inp = document.getElementById('chat-input');
-    const msg = inp.value.trim();
+    const inp = document.getElementById('chat-input'); const msg = inp.value.trim();
     if (!msg) { toggleChat(); return; }
-    const box = document.getElementById('chat-box');
-    const d = document.createElement('div');
-    d.className = 'chat-msg player';
-    d.textContent = (currentUser?.nome||'Player')+': '+msg;
-    box.appendChild(d);
-    inp.value = '';
-    toggleChat();
-}
-
-// ==================== FREEZE TIME ====================
-function startFreezeTime() {
-    isFrozen = true;
-    setTimeout(() => { isFrozen = false; }, 5000);
+    const d = document.createElement('div'); d.className = 'chat-msg player'; d.textContent = (currentUser?.nome||'Player')+': '+msg;
+    document.getElementById('chat-box').appendChild(d); inp.value = ''; toggleChat();
 }
 
 // ==================== CONFIGS ====================
-function toggleSettings() {
-    const p = document.getElementById('settings-panel');
-    if (p) p.style.display = p.style.display === 'block' ? 'none' : 'block';
-}
+function toggleSettings() { const p = document.getElementById('settings-panel'); if (p) p.style.display = p.style.display === 'block' ? 'none' : 'block'; }
+function showSettings() { document.getElementById('menu-screen').classList.remove('active'); document.getElementById('game-screen').classList.add('active'); document.getElementById('settings-panel').style.display = 'block'; if (isLocked) controls.unlock(); }
 
-function showSettings() {
-    document.getElementById('menu-screen').classList.remove('active');
-    document.getElementById('game-screen').classList.add('active');
-    document.getElementById('settings-panel').style.display = 'block';
-    if (isLocked) controls.unlock();
-}
-
-// ==================== START GAME ====================
+// ==================== START ====================
 function startGame() {
     document.getElementById('menu-screen').classList.remove('active');
     document.getElementById('game-screen').classList.add('active');
     document.getElementById('crosshair').style.display = 'none';
-    
-    // Iniciar jogo
-    if (!scene) {
-        setTimeout(() => { initGame(); }, 100);
-    }
+    if (!scene) { setTimeout(() => { initGame(); }, 100); }
+}
+
+function startFreezeTime() { isFrozen = true; setTimeout(() => { isFrozen = false; }, 5000); }
+
+function setupGameEvents() {
+    document.addEventListener('mousedown', onMouseDown);
+    document.addEventListener('contextmenu', e => e.preventDefault());
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('keyup', onKeyUp);
+    window.addEventListener('resize', onResize);
 }
 
 // ==================== GAME LOOP ====================
 function animate() {
     requestAnimationFrame(animate);
-    
     const time = performance.now();
     const delta = Math.min((time - prevTime) / 1000, 0.1);
     prevTime = time;
@@ -458,7 +336,6 @@ function animate() {
         velocity.x -= velocity.x * 10 * delta;
         velocity.z -= velocity.z * 10 * delta;
         velocity.y -= 9.8 * 30 * delta;
-        
         const speed = 400;
         if (moveForward || moveBackward || moveLeft || moveRight) {
             direction.z = Number(moveForward) - Number(moveBackward);
@@ -467,17 +344,11 @@ function animate() {
             velocity.z -= direction.z * speed * delta;
             velocity.x -= direction.x * speed * delta;
         }
-        
         const oldPos = camera.position.clone();
         controls.moveRight(-velocity.x * delta);
         controls.moveForward(-velocity.z * delta);
         controls.getObject().position.y += velocity.y * delta;
-        
-        if (controls.getObject().position.y < 14) {
-            velocity.y = 0;
-            controls.getObject().position.y = 14;
-            canJump = true;
-        }
+        if (controls.getObject().position.y < 14) { velocity.y = 0; controls.getObject().position.y = 14; canJump = true; }
     }
     
     botAI();
@@ -485,4 +356,4 @@ function animate() {
     renderer.render(scene, camera);
 }
 
-console.log('✅ Motor do jogo carregado');
+console.log('✅ Game carregado');
