@@ -342,41 +342,39 @@ function animate() {
     prevTime = time;
     
     if (!isDead && isLocked) {
-        // SEGURAR NO CHÃO!
+        // Gravidade
+        velocity.y -= 30 * delta;
+        
+        // Movimento horizontal
+        const speed = 400;
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveRight) - Number(moveLeft);
+        
+        if (direction.length() > 0) {
+            direction.normalize();
+            camera.position.x -= direction.x * speed * delta;
+            camera.position.z -= direction.z * speed * delta;
+        }
+        
+        // Vertical
+        camera.position.y += velocity.y * delta;
+        
+        // TRAVA NO CHÃO - NÃO DEIXA CAIR
         if (camera.position.y <= 14.5) {
             camera.position.y = 14.5;
             velocity.y = 0;
             canJump = true;
         }
         
-        // Gravidade
-        velocity.y -= 30 * delta;
-        
-        // Movimento
-        const speed = 400;
-        direction.z = Number(moveForward) - Number(moveBackward);
-        direction.x = Number(moveRight) - Number(moveLeft);
-        direction.normalize();
-        
-        camera.position.x -= direction.x * speed * delta;
-        camera.position.z -= direction.z * speed * delta;
-        camera.position.y += velocity.y * delta;
-        
-        // TRAVA NO CHÃO
-        if (camera.position.y < 14.5) {
-            camera.position.y = 14.5;
-            velocity.y = 0;
-            canJump = true;
-        }
-        
-        // Pulo
-        if (canJump && moveForward === false && moveBackward === false && moveLeft === false && moveRight === false) {
-            // Só pula se tiver no chão
-        }
+        // Limites do mapa
+        camera.position.x = Math.max(-48, Math.min(48, camera.position.x));
+        camera.position.z = Math.max(-48, Math.min(48, camera.position.z));
     }
     
+    // NÃO GIRAR A CÂMERA AUTOMATICAMENTE!
+    // Só o mouse controla a rotação
+    
     botAI();
-    if (camera.rotation.x < 0) camera.rotation.x *= 0.9;
     renderer.render(scene, camera);
 }
 
