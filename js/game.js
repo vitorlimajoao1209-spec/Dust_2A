@@ -32,17 +32,26 @@ function initGame() {
     document.getElementById('game-container').appendChild(renderer.domElement);
     
     // Controles sem PointerLock
-    controls = {
-        lock: function() { isLocked = true; },
-        unlock: function() { isLocked = false; },
-        addEventListener: function() {},
-        moveRight: function(v) { camera.position.x += v; },
-        moveForward: function(v) { camera.position.z += v; },
-        getObject: function() { return { position: { y: 14 } }; }
-    };
+   // Troque os controles falsos por:
+controls = new THREE.PointerLockControls(camera, document.body);
+
+// E adicione:
+controls.addEventListener('lock', function() {
     isLocked = true;
     document.getElementById('crosshair').style.display = 'block';
-    
+});
+
+controls.addEventListener('unlock', function() {
+    isLocked = false;
+    document.getElementById('crosshair').style.display = 'none';
+});
+
+// Clique na tela para travar o mouse
+document.addEventListener('click', function() {
+    if (!isChatOpen && scene) {
+        controls.lock();
+    }
+});
     document.addEventListener('mousemove', function(e) {
         if (isLocked && !isChatOpen && !isDead) {
             camera.rotation.y -= e.movementX * 0.002;
