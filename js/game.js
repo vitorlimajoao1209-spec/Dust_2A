@@ -342,22 +342,37 @@ function animate() {
     prevTime = time;
     
     if (!isDead && isLocked) {
-        velocity.x -= velocity.x * 10 * delta;
-        velocity.z -= velocity.z * 10 * delta;
-        velocity.y -= 9.8 * 30 * delta;
-        const speed = 400;
-        if (moveForward || moveBackward || moveLeft || moveRight) {
-            direction.z = Number(moveForward) - Number(moveBackward);
-            direction.x = Number(moveRight) - Number(moveLeft);
-            direction.normalize();
-            velocity.z -= direction.z * speed * delta;
-            velocity.x -= direction.x * speed * delta;
+        // SEGURAR NO CHÃO!
+        if (camera.position.y <= 14.5) {
+            camera.position.y = 14.5;
+            velocity.y = 0;
+            canJump = true;
         }
-        const oldPos = camera.position.clone();
-        controls.moveRight(-velocity.x * delta);
-        controls.moveForward(-velocity.z * delta);
-        controls.getObject().position.y += velocity.y * delta;
-        if (controls.getObject().position.y < 14) { velocity.y = 0; controls.getObject().position.y = 14; canJump = true; }
+        
+        // Gravidade
+        velocity.y -= 30 * delta;
+        
+        // Movimento
+        const speed = 400;
+        direction.z = Number(moveForward) - Number(moveBackward);
+        direction.x = Number(moveRight) - Number(moveLeft);
+        direction.normalize();
+        
+        camera.position.x -= direction.x * speed * delta;
+        camera.position.z -= direction.z * speed * delta;
+        camera.position.y += velocity.y * delta;
+        
+        // TRAVA NO CHÃO
+        if (camera.position.y < 14.5) {
+            camera.position.y = 14.5;
+            velocity.y = 0;
+            canJump = true;
+        }
+        
+        // Pulo
+        if (canJump && moveForward === false && moveBackward === false && moveLeft === false && moveRight === false) {
+            // Só pula se tiver no chão
+        }
     }
     
     botAI();
